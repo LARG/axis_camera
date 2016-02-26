@@ -136,8 +136,9 @@ class StreamThread(threading.Thread):
         self.axis.caminfo_pub.publish(cimsg)
 
 class Axis:
-    def __init__(self, hostname, username, password, width, height, frame_id, 
+    def __init__(self, camera_name, hostname, username, password, width, height, frame_id, queue_size,
                  camera_info_url, use_encrypted_password):
+        self.cname = camera_name
         self.hostname = hostname
         self.username = username
         self.password = password
@@ -148,13 +149,14 @@ class Axis:
         self.use_encrypted_password = use_encrypted_password
         
         # generate a valid camera name based on the hostname
-        self.cname = camera_info_manager.genCameraName(self.hostname)
+        if not self.cname:
+          self.cname = camera_info_manager.genCameraName(self.hostname)
         self.cinfo = camera_info_manager.CameraInfoManager(cname = self.cname,
                                                    url = self.camera_info_url)
         self.cinfo.loadCameraInfo()         # required before getCameraInfo()
         self.st = None
-        self.pub = rospy.Publisher("image_raw/compressed", CompressedImage, self)
-        self.caminfo_pub = rospy.Publisher("camera_info", CameraInfo, self)
+        self.pub = rospy.Publisher("image_raw/compressed", CompressedImage, self, queue_size=queue_size)
+        self.caminfo_pub = rospy.Publisher("camera_info", CameraInfo, self, queue_size=queue_size)
 
     def __str__(self):
         """Return string representation."""
@@ -172,14 +174,16 @@ def main():
     rospy.init_node("axis_driver")
 
     arg_defaults = {
+        'camera_name': '',
         'hostname': '192.168.0.90',       # default IP address
         'username': 'root',               # default login name
         'password': '',
         'width': 640,
         'height': 480,
         'frame_id': 'axis_camera',
+        'queue_size': 1,
         'camera_info_url': '',
-        'use_encrypted_password' : False}
+        'use_encrypted_password': False}
     args = updateArgs(arg_defaults)
     Axis(**args)
     rospy.spin()
